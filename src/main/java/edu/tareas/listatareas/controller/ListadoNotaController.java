@@ -1,14 +1,13 @@
 package edu.tareas.listatareas.controller;
 
-import edu.tareas.listatareas.dao.IListaNotasDAO;
+import com.google.gson.Gson;
 import edu.tareas.listatareas.dao.services.IListadoNotasServicesImpl;
-import edu.tareas.listatareas.dao.services.ListadoService;
 import edu.tareas.listatareas.models.entities.ListadoNotasDTO;
 import edu.tareas.listatareas.models.model.ListadoNota;
 import jakarta.validation.Valid;
-import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.domain.Page;
@@ -28,13 +27,31 @@ import java.util.stream.Collectors;
 
 
 @RestController
-@RequestMapping (value = "/listanotas/v1/notas")
-public class ListadoNotaService {
+@RequestMapping (value = "/notaslistas/v1/notas")
+public class ListadoNotaController {
+
+    private final RabbitTemplate queuesender;
 
     @Autowired
     private IListadoNotasServicesImpl iListadoNotasServices;
 
-    private Logger logger = LoggerFactory.getLogger(ListadoNotaService.class);
+    private Logger logger = LoggerFactory.getLogger(ListadoNotaController.class);
+
+
+    @GetMapping("/test")
+    public String send(){
+        String messaege = "Testing rabbit";
+        this.queuesender.convertAndSend("exchange-notas-process","notas",messaege);
+        return "ok, done";
+
+    }
+
+    public ListadoNotaController(RabbitTemplate queuesender){
+        this.queuesender = queuesender;
+
+
+    }
+
 
     @GetMapping
     public ResponseEntity<?>ListaNotas(){
@@ -134,6 +151,8 @@ public class ListadoNotaService {
             logger.info("se acaba de creaer un nueva nueva listado ");
             response.put("mensaje", "Una nueva lista fue creado con exito ");
             response.put("listado", listadoNota);
+
+            this.queuesender.convertAndSend("exchange-notas-process","notas",new Gson().toJson(value));//necesitamos dependecia
             return new ResponseEntity<Map<String, Object>>(response, HttpStatus.CREATED);
         }catch (CannotCreateTransactionException e){
             response = this.getTransactionExepcion(response, e);
@@ -238,6 +257,7 @@ public class ListadoNotaService {
 
         }
     }
+
 //------------------------------
 
     private Map<String, Object> getTransactionExepcion(Map<String,Object> response, CannotCreateTransactionException e){
