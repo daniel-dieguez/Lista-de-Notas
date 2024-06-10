@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping (value = "/notaslistas/v1/notas")
+@CrossOrigin(origins = "*") // para poder dar permiso y uitlizarlo
 public class ListadoNotaController {
 
     private final RabbitTemplate queuesender;
